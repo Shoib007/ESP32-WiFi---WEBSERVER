@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 0.95em;
+        }
+
+        .pin-card {
+            background: #fff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .pin-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .pin-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .pin-label {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .pin-number {
+            font-size: 0.9em;
+            color: #888;
+            font-family: 'Courier New', monospace;
+        }
+
+        .switch {
+            position: relative;
+            width: 70px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(36px);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #e74c3c;
+            transition: background-color 0.3s;
+        }
+
+        .status-indicator.active {
+            background-color: #2ecc71;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+
+            .pin-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎛️ ESP32 Control Panel</h1>
+        <p class="subtitle">Control your GPIO pins remotely</p>
+
+        <div class="pin-card">
+            <div class="pin-info">
+                <div class="pin-label">
+                    <span class="status-indicator" id="status-12"></span>
+                    LED 1
+                </div>
+                <div class="pin-number">GPIO 12</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggle-12" onchange="togglePin(12)">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-info">
+                <div class="pin-label">
+                    <span class="status-indicator" id="status-13"></span>
+                    LED 2
+                </div>
+                <div class="pin-number">GPIO 13</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggle-13" onchange="togglePin(13)">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="pin-card">
+            <div class="pin-info">
+                <div class="pin-label">
+                    <span class="status-indicator" id="status-14"></span>
+                    LED 3
+                </div>
+                <div class="pin-number">GPIO 14</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggle-14" onchange="togglePin(14)">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="footer">
+            ESP32 Web Server • Built with ESPAsyncWebServer
+        </div>
+    </div>
+
+    <script>
+        function togglePin(pinId) {
+            const checkbox = document.getElementById(`toggle-${pinId}`);
+            const statusIndicator = document.getElementById(`status-${pinId}`);
+            const state = checkbox.checked ? 1 : 0;
+
+            // Send request to ESP32
+            fetch(`/led?id=${pinId}&state=${state}`)
+                .then(response => {
+                    if (response.ok) {
+                        // Update status indicator
+                        if (checkbox.checked) {
+                            statusIndicator.classList.add('active');
+                        } else {
+                            statusIndicator.classList.remove('active');
+                        }
+                    } else {
+                        // Revert checkbox if request failed
+                        checkbox.checked = !checkbox.checked;
+                        console.error('Failed to toggle pin');
+                    }
+                })
+                .catch(error => {
+                    // Revert checkbox if request failed
+                    checkbox.checked = !checkbox.checked;
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>
